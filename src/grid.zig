@@ -7,14 +7,12 @@ const utils = @import("utils.zig");
 
 const Grid = @This();
 
-///// the side-length of each cell in pixels/sdl-pixels
-//cell_size: u32,
 /// the width of the grid in cells
 width: usize,
 /// the height of the grid in cells
 height: usize,
 /// an array of all the cells in the simulation
-cells: []?Cell, // perhaps this will one-day be a variable length list??
+cells: std.ArrayList(Cell),
 //cells: [][]Cell,
 /// the `SDL.Texture` of the grid
 /// `texture` is updated with each update
@@ -26,8 +24,10 @@ pub const empty_color = utils.Color.from_u32(0x000000_FF); // not sure what alph
 /// Create a grid, allocating space for a grid of width*height
 pub fn create(allocator: Allocator, renderer: SDL.Renderer, width: usize, height: usize) !Grid {
     // initialize the cell array to all null cells
-    const cells_array = try allocator.alloc(?Cell, width * height);
-    for (cells_array) |*cell| cell.* = null;
+    //const cells_array = try allocator.alloc(?Cell, width * height);
+    //for (cells_array) |*cell| cell.* = null;
+
+    const cells_array = try std.ArrayList(Cell).initCapacity(allocator, width * height);
 
     const texture = try SDL.createTexture(
         renderer,
@@ -46,7 +46,7 @@ pub fn create(allocator: Allocator, renderer: SDL.Renderer, width: usize, height
 }
 
 /// destroy the grid and deallocate what's necessary
-pub fn destroy(self: *const Grid, allocator: Allocator) void {
+pub fn destroy(self: *Grid) void {
     //        // free each row
     //        for (self.cells) |row| {
     //            // destroy each individual cell
@@ -57,7 +57,7 @@ pub fn destroy(self: *const Grid, allocator: Allocator) void {
     //        }
     //        allocator.free(self.cells);
 
-    allocator.free(self.cells);
+    self.cells.clearAndFree();
     self.texture.destroy();
 }
 
@@ -69,8 +69,7 @@ pub fn update(self: *Grid) !void {
 
 /// update the state of the cells in the grid
 fn physics_update(self: *Grid) void {
-    for (self.cells) |*cell| if (cell.* != null) // iterate over non-null cells
-        cell.*.?.update();
+    for (self.cells.items) |*cell| cell.*.update();
 }
 
 // TODO: create texture from grid (sdl has scaling options such as linear that will help here as well)
@@ -94,7 +93,7 @@ fn texture_update(self: *const Grid) !void {
     for (pixels) |*pixel| pixel.* = empty_color;
 
     // apply each non-null cell's color
-    for (self.cells) |maybe_cell| if (maybe_cell) |cell| {
+    for (self.cells.items) |cell| {
         const pos = cell.position;
 
         // bounds check TODO: remove?
@@ -111,7 +110,14 @@ fn texture_update(self: *const Grid) !void {
         const pixel = &pixels[index];
         // set the color of the pixel
         pixel.* = cell.color;
-    };
+    }
+}
+
+/// returns a pointer to the first cell at a position
+pub fn cell_at(self: *const Grid, pos: utils.Position) ?*Cell {
+    return for (self.cells.items) |*cell| {
+        if (std.meta.eql(cell.position, pos)) break cell;
+    } else null;
 }
 
 // TODO: fix this test to fit the new scheme?

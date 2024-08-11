@@ -1,7 +1,10 @@
 const Cell = @This();
 const Element = @import("element.zig");
 const utils = @import("utils.zig");
+const Grid = @import("grid.zig");
 
+/// the grid that contains this cell
+grid: *const Grid,
 /// the tick that this cell was created on
 created_tick: u64,
 
@@ -9,7 +12,7 @@ created_tick: u64,
 position: utils.Position,
 
 /// this cell's color
-color: utils.Color,
+color: utils.Color = utils.Color.from_u32(0x000000FF),
 
 /// the element of this cell
 element: Element,
